@@ -1,0 +1,292 @@
+--
+  title: "W3 HW Time Series Forecasting "
+author: "Min Chwng
+date: "9/26/2023"
+output: html_document
+---
+```{r setup, include=FALSE}
+# Set the CRAN mirror
+options(repos = c(CRAN = "https://cran.rstudio.com/"))
+```
+
+# Load required libraries
+```{r warning=FALSE}
+library(readxl)
+library(dplyr)
+library(forecast)
+library(ggplot2)
+```
+
+# Set your file path accordingly
+```{r warning=FALSE}
+file_path <- "C:/Users/mchen/OneDrive/Desktop/2023fall syllasbus/Forecasting/homework/week3/6M PO forecast summary no forecast.xlsx"
+data <- read_excel("C:/Users/mchen/OneDrive/Desktop/2023fall syllasbus/Forecasting/homework/week3/6M PO forecast summary no forecast.xlsx")
+```
+
+
+# Adjust data structure 
+```{r warning=FALSE}
+everich_sales <- as.numeric(data[2, 2:13]) 
+```
+
+# Converting all the sales data to numeric type
+```{r warning=FALSE}
+
+data <- as.data.frame(lapply(data, as.numeric), stringsAsFactors = FALSE)
+
+```
+
+#ARIMA model forecast for everich
+```{r warning=FALSE}
+if(length(everich_sales) > 0 && !is.na(everich_sales[1])) {
+  everich_ts <- ts(everich_sales, frequency = 12, start = c(2022, 9))
+  
+
+  fit <- auto.arima(everich_ts)
+  print(fit)  # fit arima model
+  
+  
+  forecasted_sales <- forecast(fit, h = 6)
+  print(forecasted_sales)# use arima model forecast the following 6 months sales 
+  
+ 
+  plot(forecasted_sales) # plot the forecast
+} else {
+  print("if data is wrong, check。")
+  
+  # Calculate residuals
+residuals <- everich_ts - forecasted_sales$mean
+
+# Calculate the mean of residuals
+mean_residual <- mean(residuals)
+
+# Plot the residuals
+plot(residuals, type = "l", main = "Residuals Plot", ylab = "Residuals")
+
+# Calculate the standard deviation of residuals
+sd_residual <- sd(residuals)
+
+# Calculate additional statistics if needed (e.g., MAE, MSE, RMSE)
+mae <- mean(abs(residuals))
+mse <- mean(residuals^2)
+rmse <- sqrt(mse)
+
+# Print the results
+cat("Mean of Residuals:", mean_residual, "\n")
+cat("Standard Deviation of Residuals:", sd_residual, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+cat("Mean Squared Error (MSE):", mse, "\n")
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+}
+```
+#explaination :The ARIMA(0,0,0) model, with a constant mean of 256,434 and a residual variance of 1.41e+10, is a simple model that doesn't consider time series patterns. Its accuracy may be limited, and it might not perform well in capturing data dynamics or improving forecasts. More complex models are often needed for better accuracy.
+
+#naive()
+```{r warning=FALSE}
+
+install.packages("forecast")
+library(forecast)
+
+
+sales_data <- data.frame(
+  Supplier = c(
+    "Everich Commerce Group Limited", 
+    "McPackaging Inc.", 
+    "Colorado Quality Products, LLC", 
+    "Hangzhou Orientjohn Industry Co., Ltd.", 
+    "Guangzhou Haike Electronics Technology Co. Ltd.", 
+    "Hangzhou Senyue Home Fashion Textile Co., Ltd", 
+    "Raphas", 
+    "Chemolee Lab Corp", 
+    "K-LOYAL GARMENT CO., LTD", 
+    "Guangzhou Kanglv Purification Technology Co. Ltd."
+  ),
+  `9` = c(946073.2, 143473.42, 378297.6, 0, 0, 8847.6, 0, 0, 0, 0),
+  `10` = c(1201107.04, 290555.03, 0, 0, 0, 27680.19, 578124, 0, 0, 0),
+  `11` = c(453761.32, 299543.35, 0, 0, 161520.96, 0, 256089.6, 0, 0, 188632),
+  `12` = c(690343.96, 263356.74, 0, 7500, 167320.48, 0, 131964, 29635.2, 0, 103496),
+  `1` = c(0, 121482.85, 16800, 0, 0, 0, 202033.5, 59094, 965391.38, 0),
+  `2` = c(1402067.48, 376592.39, 41500, 0, 0, 0, 0, 99100, 0, 0),
+  `3` = c(400213.05, 182189.97, 56420, 147806, 1146043.58, 0, 298263.599999999, 53750, 0, 0),
+  `4` = c(516291.08, 239997.73, 0, 0, 0, 0, 0, 0, 0, 92888),
+  `5` = c(1201393.12, 495716.169999999, 24040, 277690, 84309.44, 46263.15, 189848.4, 0, 8267.4, 0),
+  `6` = c(314945.44, 288119.59, 787170, 116487.2, 142898.42, 54573.56, 119372.4, 112445, 0, 89352)
+)
+
+
+library(reshape2)
+sales_data_long <- melt(sales_data, id.vars = "Supplier", variable.name = "Month", value.name = "Sales")
+
+
+sales_data_long$Month <- as.numeric(sales_data_long$Month)
+
+
+forecast_values <- vector("list", length = nrow(sales_data_long))
+
+for (i in 1:nrow(sales_data_long)) {
+  supplier_sales <- ts(sales_data_long[i, -(1:2)], frequency = 12)
+  forecast_values[[i]] <- forecast::naive(supplier_sales, h = 6)
+}
+
+
+forecast_data <- data.frame(
+  Supplier = rep(sales_data_long$Supplier, each = 6),
+  Month = rep(13:18, times = nrow(sales_data_long)),
+  Forecasted_Sales = unlist(lapply(forecast_values, function(x) x$mean))
+)
+
+
+library(ggplot2)
+
+ggplot(forecast_data, aes(x = Month, y = Forecasted_Sales, color = Supplier)) +
+  geom_line() +
+  labs(title = "Forecasted Sales for Each Supplier",
+       x = "Month",
+       y = "Forecasted Sales") +
+  theme_minimal()
+month_labels <- c("Sep", "Oct", "Nov", "Dec", "Jan", "Feb")
+
+ggplot(forecast_data, aes(x = Month, y = Forecasted_Sales, color = Supplier)) +
+  geom_line() +
+  labs(title = "Forecasted Sales for Each Supplier",
+       x = "Month",
+       y = "Forecasted Sales") +
+  scale_x_continuous(breaks = 13:18, labels = month_labels) +  
+  theme_minimal()
+
+```
+# Print the results
+cat("MAE:", mae, "\n")
+cat("MSE:", mse, "\n")
+cat("RMSE:", rmse, "\n")
+cat("MAPE:", mape, "%\n")
+cat("SMAPE:", smape, "%\n")
+
+MAE: 678710.8 
+MSE: 683713452890 
+RMSE: 826761.2 
+MAPE: 117.3732 %
+SMAPE: 118.2726 %
+
+Explanation:
+MAE (Mean Absolute Error): 678,710.8, representing the average absolute difference between predicted and actual values.
+MSE (Mean Squared Error): 683,713,452,890, measuring the squared differences between predicted and actual values.
+RMSE (Root Mean Squared Error): 826,761.2, the square root of MSE providing a comparison to actual values.
+MAPE (Mean Absolute Percentage Error): 117.3732%, indicating the average percentage difference.
+SMAPE (Symmetric Mean Absolute Percentage Error): 118.2726%, symmetric percentage error accounting for over and underestimation.
+These metrics show that the model has relatively large errors compared to actual data.
+There is room for improvement in the model's predictive accuracy.
+High MAPE and SMAPE suggest significant percentage errors in predictions.
+Lower RMSE indicates that large errors are not very frequent.
+Overall, the model may need refinement for more accurate forecasts.
+
+#moving avg
+```{r warning=FALSE}
+# 安装并加载readxl和zoo包
+install.packages("readxl")
+install.packages("zoo")
+library(readxl)
+library(zoo)
+
+# 从Excel文件中读取数据
+excel_file <- "C:/Users/mchen/OneDrive/Desktop/2023fall syllasbus/Forecasting/homework/week3/6M PO forecast summary no forecast.xlsx"  # 请将文件路径替换为您的Excel文件路径
+
+supplier_data <- read_excel(excel_file)
+
+# 提取历史销售数据
+historical_data <- supplier_data[2:11, 2:13]
+
+# 计算每个供应商的简单移动平均
+ma5_forecasts <- apply(historical_data, 2, function(x) rollmean(x, k = 5, fill = NA))
+ma9_forecasts <- apply(historical_data, 2, function(x) rollmean(x, k = 9, fill = NA))
+
+# 创建数据框以存储移动平均结果
+result_data <- data.frame(
+  Supplier = supplier_data[2:11, 1],  # 供应商名称
+  Month = c(9:12, 1:8),  # 月份
+  MA5_Forecast = as.vector(ma5_forecasts),  # MA(5)预测
+  MA9_Forecast = as.vector(ma9_forecasts)  # MA(9)预测
+)
+
+# 打印结果数据框
+print(result_data)
+
+#Test accuracy:
+
+# 实际销售数据 (Actual sales data)
+actual_sales <- c(
+  201, 815, 428, 591, 597, 90, 635, 757, 836, 945, 669, 487,
+  139, 885, 227, 680, 278, 781, 224, 759, 275, 961, 234, 340,
+  117, 233, 31, 736, 69, 460, 227, 676, 316, 070, 269, 728,
+  87, 662, 169, 437, 145, 591, 159, 593, 195, 266, 40, 873,
+  798, 421, 27, 226, 165, 491, 164, 276, 201, 187, 170, 057,
+  728, 237, 112, 641, 73, 717, 41, 265, 42, 578, 65, 545,
+  65, 501, 401, 247, 18, 267, 111, 373, 37, 234, 43, 319,
+  115, 404, 58, 638, 384, 235, 44, 484, 22, 200, 48, 197,
+  49, 143, 62, 033, 52, 402, 278, 460, 20, 762, 34, 538,
+  43, 461, 49, 425, 62, 525, 55, 939, 266, 651
+)
+
+# 在forecasted_sales中添加7个零，确保长度匹配
+forecasted_sales <- c(result_data$MA5_Forecast, rep(0, 7))
+print(forecasted_sales)
+
+# 计算 MAE
+mae <- mean(abs(actual_sales - forecasted_sales))
+
+# 计算 MSE
+mse <- mean((actual_sales - forecasted_sales)^2)
+
+# 计算 RMSE
+rmse <- sqrt(mse)
+
+# 计算 MAPE
+mape <- mean(abs((actual_sales - forecasted_sales) / actual_sales)) * 100
+
+# 打印结果
+cat("MAE:", mae, "\n")
+cat("MSE:", mse, "\n")
+cat("RMSE:", rmse, "\n")
+cat("MAPE:", mape, "%\n")
+
+
+
+```
+
+Test accuracy:
+
+actual_sales <- c(
+  201,815, 428,591, 597,090, 635,757, 836,945, 669,487, 3,369,685, 
+  139,885, 227,680, 278,781, 224,759, 275,961, 234,340, 1,381,406, 
+  117,233, 31,736, 69,460, 227,676, 316,070, 269,728, 1,031,903, 
+  87,662, 169,437, 145,591, 159,593, 195,266, 40,873, 798,421, 
+  27,226, 165,491, 164,276, 201,187, 170,057, 728,237, 
+  112,641, 73,717, 41,265, 42,578, 65,545, 65,501, 401,247, 
+  18,267, 111,373, 37,234, 43,319, 115,404, 58,638, 384,235, 
+  44,484, 22,200, 48,197, 49,143, 62,033, 52,402, 278,460, 
+  20,762, 34,538, 43,461, 49,425, 62,525, 55,939, 266,651
+)
+
+Forecast data:
+[1] 0 0 106123.72 77429.04 1769.52 1769.52 1769.52 0 0 0 0 0 63647.04 121160.84 121160.84 121160.84
+[17] 121160.84 0 0 0 0 0 92212.86 83522.11 83522.11 83522.11 88944.32 0 0 0 0 0
+[33] 87635.44 61356.90 67283.94 65783.94 53019.04 0 0 0 0 0 27656.57 43766.70 52225.50 245303.78 245303.78
+[49] 0 0 0 0 0 83618.48 8300.00 19820.00 19820.00 19820.00 0 0 0 0 0 306491.91
+[65] 329706.64 329172.64 299611.44 70402.72 0 0 0 0 0 47999.55 0.00 0.00 0.00 18577.60 0
+[81] 0 0 0 185603.75 124430.20 119622.20 65737.68 48875.79 0 0 0 0 0 277849.75 244100.32
+[97] 109155.32 85857.88 75148.59 0 0 0 0 0 220926.24 157529.87 88208.26 87368.26 54481.50 0 0
+[113] 132418.25 151306.75 109766.75 141781.96 152552.36 0 0 0 0.00 0.00 0.00 0.00 0.00 0.00 0.00
+
+Accuracy: 
+MAE (Mean Absolute Error): 519.2451
+MSE (Mean Squared Error): 512988.6
+RMSE (Root Mean Squared Error): 716.1209
+MAPE (Mean Absolute Percentage Error): 75.12251%
+
+explain:
+MAE: 519.2451: On average, the model's predictions have an absolute error of approximately 519.25 units from the actual values.
+MSE: 512988.6: The model's predictions have, on average, squared errors totaling approximately 512,988.6 units.
+RMSE: 716.1209: The square root of MSE, indicating that, on average, the model's predictions have errors of approximately 716.12 units.
+MAPE: 75.12251%: On average, the model's predictions have a percentage error of approximately 75.12% relative to the actual values.
+In summary, while the MAE, MSE, and RMSE suggest a relatively low magnitude of errors, the MAPE indicates that, on average, the model's predictions have a relatively high percentage error. The model may have relatively accurate absolute predictions (MAE and RMSE) but may be less accurate in terms of percentage errors (MAPE). The choice of which metric to prioritize depends on the specific application and the relative importance of different types of errors.
+```
