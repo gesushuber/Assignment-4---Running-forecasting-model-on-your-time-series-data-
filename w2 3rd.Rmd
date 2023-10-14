@@ -1,0 +1,202 @@
+---
+title: "myHW "
+author: "min cheng"
+date: "10/01/2023"
+output: html_document
+---
+
+
+## load tool：forecast
+## Registered S3 method overwritten by 'quantmod':
+##   method            from
+##   as.zoo.data.frame zoo
+## load tool：zoo
+
+## Step 1  take MEAN of all available history 
+```{r}
+library(TTR)
+library(readxl)
+library(forecast)
+library(fpp2)
+library(zoo)
+
+data <- read_excel("C:/Users/mchen/OneDrive/Desktop/2023fall syllasbus/Forecasting/homework/w3 2nd/Sample - Superstore.xls")
+
+
+Data_ts<-- ts(data$Sales, start=c(2014, 1), frequency=12)
+attributes(Data_ts)
+
+
+mean_forecast <- meanf(Data_ts,5) # 5 is the forecasting period
+print(mean_forecast)
+plot(mean_forecast)
+
+accuracy(mean_forecast)
+
+```
+
+## Step 2  Random Walk
+```{r}
+library(forecast)
+
+Data_ts<-- ts(data$Sales, start=c(2014, 1), frequency=12)
+attributes(Data_ts)
+
+forecast_period <- 5  # Number of periods to forecast
+rwf_forecast <- rwf(Data_ts, h = forecast_period)
+
+print(rwf_forecast)
+
+
+
+plot(rwf_forecast, main="Randomwalk forecast Sales-Superstore", ylab="Sales/Monthly $", xlab="forecast sales 1/2019-5/2019")
+lines(rwf_forecast$mean,col="black")
+
+accuracy(rwf_forecast)
+
+```
+
+
+#Naive Model
+```{r}
+naive_forecast <- naive(Data_ts,6)
+plot(naive_forecast,main="6 months forecast Sales-Superstore",ylab="Sales/Monthly $",xlab = "forecast sales 1/2019-6/2019")
+plot(naive_forecast )
+lines(naive_forecast$mean,col="Green")
+
+accuracy(naive_forecast)
+```
+
+
+
+
+#Seasonal Naive
+```{r}
+snaive_forecast <- snaive(Data_ts,6)
+print(snaive_forecast)
+plot(snaive_forecast)
+lines(snaive_forecast$mean,col="yellow")
+accuracy(snaive_forecast)
+```
+#The graph displays forecasts made using the Seasonal Naive method with a horizon (H) of 6 months. Ponit data is sales forecast value for each future month.For example, in Nov 2018, the forecasted value is -28392.0.the 80% prediction interval. It suggests there's an 80% probability the actual values will fall within this range.For Nov 2018, the range is between -78885.09 (Lo 80) and 22101.085 (Hi 80).Lo 95 and Hi 95 :This depicts the 95% prediction interval, implying a 95% probability that the true value lies within this range.For Nov 2018, the interval is between -105614.5 (Lo 95) and 48830.51 (Hi 95).
+
+
+
+#Plot all of these together
+```{r}
+plot(mean_forecast)
+lines(naive_forecast$mean,col="green")
+lines(snaive_forecast$mean,col="yellow")
+lines(rwf_forecast$mean,col="black")
+
+```
+#The graph displays a time series forecast using mean . the "Point Forecast," representing the predicted sales forecast for 2019 is consistently -35136.93.. The "Lo 80" and "Hi 80" values form an 80% prediction interval, suggesting there's an 80% chance actual values lie within this range. Similarly, "Lo 95" and "Hi 95" define a wider 95% prediction interval, showing greater uncertainty but higher confidence in the predicted range.
+
+
+
+# moving averages
+```{r}
+sales_data <- data$Sales
+
+MA5_forecast <- ma(sales_data, order=5)
+MA9_forecast <- ma(sales_data, order=9)
+
+print(MA5_forecast)
+print(MA9_forecast)
+
+if (length(sales_data) == length(MA5_forecast) && length(sales_data) == length(MA9_forecast)) {
+  plot(sales_data, type="l") # Use the extracted sales_data
+  lines(MA5_forecast, col="Pink")
+  lines(MA9_forecast, col="Blue")
+} else {
+  cat("The lengths or data types do not match, please check the data.\n")
+}
+MA5_forecast <- na.omit(MA5_forecast)
+MA9_forecast <- na.omit(MA9_forecast)
+
+
+# Aligning MA5 with sales data
+MA5_forecast_clean <- na.omit(MA5_forecast)
+sales_data_MA5 <- tail(sales_data, length(MA5_forecast_clean))
+
+
+
+# Aligning MA9 with sales data
+MA9_forecast_clean <- na.omit(MA9_forecast)
+sales_data_MA9 <- tail(sales_data, length(MA9_forecast_clean))
+
+
+
+accuracy(MA5_forecast_clean, sales_data_MA5)
+accuracy(MA9_forecast_clean, sales_data_MA9)
+
+```
+#The underlying black line represents the actual sales data. It oscillates, showing the sales fluctuations over the index range, which presumably represents time (e.g., months).Moving Averages (MA):MA5 (Pink Line): The pink line represents a 5-period moving average forecast. This means for any given point on this line, it's an average of that point and the 4 preceding points in the actual sales data. It's smoother than the actual data and reacts more quickly to recent changes than the 9-period moving average.MA9 (Blue Line): The blue line indicates a 9-period moving average forecast. Averaging over 9 periods gives an even smoother curve which might be better for spotting long-term trends, but it reacts more slowly to recent changes.
+
+
+
+```{r}
+
+#Hotls Winter Forecast
+sales_data <- ts(data$Sales, start=c(2014, 1), frequency=12)
+hw_model <- HoltWinters(sales_data)
+print(hw_model)
+hw_forecast <- forecast(hw_model)
+
+#SSE Forecast
+sse <- sum(hw_model$residuals^2)
+cat("Sum of Squared Errors (SSE):", sse, "\n")
+plot(hw_model, main="Holts Winter Forecast")
+
+
+SSE_Trend <- HoltWinters(sales_data, gamma=FALSE)
+plot(SSE_Trend, main="Holts Winter SSE Forecast")
+print(SSE_Trend)
+
+
+SSE_Trend_forecast <- forecast(SSE_Trend) # You should create a different forecast object
+
+
+accuracy(hw_forecast)
+accuracy(SSE_Trend_forecast)
+
+```
+
+
+# The black line shows actual sales data, while the red line depicts the Holt-Winters forecast.the first model incorporates both trend and seasonality. Its high alpha value (0.9182246) signifies a quick response to recent data changes. A low beta value (0.01014717) indicates minimal trend fluctuation, and a gamma of 1 reveals total adherence to recent seasonal patterns. An SSE of 0 suggests a perfect fit, raising concerns of overfitting.The second model, focusing only on the trend, has an alpha of 1 for total responsiveness and a moderate beta (0.1093785) indicating slow trend adjustments. It excludes seasonality.These models offer insights into sales trends and forecasts, with model selection hinging on specific forecasting requirements and observed sales trends.
+
+#Arima Model
+
+```{r}
+fit <- auto.arima(sales_data)
+
+print(fit)
+
+# Forecast the next 6 months
+Arima_forecast <- forecast(fit, h=6)
+
+# Print the forecasted values
+print(Arima_forecast)
+
+# Plot the forecasted values
+plot(Arima_forecast, main="6 Months Sales Forecast using ARIMA")
+accuracy(Arima_forecast)
+```
+
+#The graph illustrates a 6-month ARIMA sales forecast from late 2018 to early 2019. The ARIMA model used is (1,0,0) with coefficients: ar1 at 0.7885 and a mean of 36668.907. Notably, forecasts for Nov 2018 and Apr 2019 are 63674.02 and 44899.50 respectively. Confidence intervals highlight potential sales variations, aiding in future business decisions.
+
+
+Compare and Select a Model with the Min Error
+```{r}
+accuracy(mean_forecast)
+accuracy(rwf_forecast)
+accuracy(naive_forecast)
+accuracy(snaive_forecast)
+accuracy(MA5_forecast_clean, sales_data_MA5)
+accuracy(MA9_forecast_clean, sales_data_MA9)
+accuracy(hw_forecast)
+accuracy(SSE_Trend_forecast)
+accuracy(Arima_forecast)
+
+```
+#We're using MAPE to figure out the top forecast model. After sizing them up, the Naive and SNaive models come out ahead with a MAPE of 36.12719.
